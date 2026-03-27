@@ -1,0 +1,32 @@
+{
+  "name": "open-curriculum",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "bun:dev": "bunx nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@elysiajs/eden": "^1.4.8",
+    "@llamaindex/readers": "^3.1.22",
+    "@nuxt/eslint": "1.15.2",
+    "better-sqlite3": "^12.8.0",
+    "drizzle-orm": "^0.45.1",
+    "elysia": "^1.4.28",
+    "nuxt": "^4.4.2",
+    "sqlite-vec": "^0.1.7",
+    "vue": "^3.5.30",
+    "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/bun": "^1.3.11",
+    "bun-types": "latest",
+    "drizzle-kit": "^0.31.10",
+    "nuxt-elysia": "^0.2.0"
+  }
+}
