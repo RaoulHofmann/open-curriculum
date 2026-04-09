@@ -3,7 +3,7 @@
  *
  * - Uses the existing `searchKnowledgeBase` to retrieve relevant chunks for a query.
  * - Assembles a prompt with retrieved context, user question, and instructions.
- * - Calls local Ollama (`qwen3.5:0.8b` by default) via the HTTP API to generate an answer.
+ * - Calls local Ollama (`gemma3:1b` by default) via the HTTP API to generate an answer.
  *
  * Exports:
  * - `answerWithRAG(query, opts)` -> { answer, sources, raw }
@@ -15,10 +15,11 @@
  * - Adjust `OLLAMA_HOST` or `OLLAMA_MODEL` via env vars if your local setup differs.
  */
 
+import { RagResult } from "../types";
 import { searchKnowledgeBase } from "./search";
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen3.5:0.8b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
 
 export interface RagOptions {
   k?: number; // how many items to retrieve from vector DB
@@ -27,17 +28,6 @@ export interface RagOptions {
   temperature?: number;
   // extra instructions to include in the prompt
   extraInstructions?: string;
-}
-
-export interface RagResult {
-  answer: string;
-  sources: Array<{
-    code?: string;
-    title?: string;
-    distance?: number;
-    meta?: Record<string, any>;
-  }>;
-  raw: any; // raw response from Ollama (as returned)
 }
 
 /**
@@ -121,7 +111,7 @@ ${context}
 User question:
 ${question}
 
-Answer:
+Answer: /no_think
 `.trim();
 
   return prompt;
@@ -136,7 +126,7 @@ export async function callOllama(
   opts?: { model?: string; maxTokens?: number; temperature?: number },
 ) {
   const model = opts?.model || OLLAMA_MODEL;
-  const max_tokens = opts?.maxTokens ?? 512;
+  const num_predict = opts?.maxTokens ?? 512;
   const temperature =
     typeof opts?.temperature === "number" ? opts.temperature : 0.0;
 
@@ -145,8 +135,13 @@ export async function callOllama(
   const payload = {
     model,
     prompt,
-    max_tokens,
-    temperature,
+    stream: false,
+    options: {
+      num_predict,
+      temperature,
+      think: false,
+      enable_thinking: false,
+    },
   };
 
   const resp = await fetch(url, {
@@ -157,52 +152,11 @@ export async function callOllama(
 
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
-    throw new Error(
-      `Ollama generate error ${resp.status}: ${resp.statusText} - ${txt}`,
-    );
+    throw new Error(`Ollama error ${resp.status}: ${resp.statusText} - ${txt}`);
   }
 
-  const contentType = resp.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    const json = await resp.json();
-    // common shapes:
-    // { text: "..." } or { choices: [{ text: "..." }]} or { output: [{ content: [{ type: "output_text", text: "..." }] }] }
-    let text: string | undefined;
-
-    if (typeof json.text === "string") {
-      text = json.text;
-    } else if (
-      Array.isArray(json.choices) &&
-      typeof json.choices[0]?.text === "string"
-    ) {
-      text = json.choices[0].text;
-    } else if (Array.isArray(json.output)) {
-      // Ollama sometimes returns `output` array with content
-      try {
-        for (const out of json.output) {
-          if (Array.isArray(out?.content)) {
-            for (const c of out.content) {
-              if (typeof c?.text === "string") {
-                text = (text ? text + "\n" : "") + c.text;
-              } else if (typeof c === "string") {
-                text = (text ? text + "\n" : "") + c;
-              }
-            }
-          } else if (typeof out?.text === "string") {
-            text = (text ? text + "\n" : "") + out.text;
-          }
-        }
-      } catch (e) {
-        // fallthrough
-      }
-    }
-
-    return { raw: json, text };
-  } else {
-    // not JSON, return as text
-    const txt = await resp.text();
-    return { raw: txt, text: txt };
-  }
+  const json = await resp.json();
+  return { raw: json, text: json.response as string | undefined };
 }
 
 /**
@@ -215,18 +169,13 @@ export async function answerWithRAG(
 ): Promise<RagResult> {
   const k = options?.k ?? 5;
   const maxContextChars = options?.maxContextChars ?? 3000;
-  const maxTokens = options?.maxTokens ?? 512;
+  const maxTokens = options?.maxTokens ?? 2048;
   const temperature = options?.temperature ?? 0.0;
 
-  // 1) Retrieve candidates from vector DB
   const retrieved = await searchKnowledgeBase(userQuery, k);
 
-  // 2) Build context
   const context = buildContextFromResults(retrieved, maxContextChars);
 
-  console.log(context);
-
-  // 3) Build prompt with helpful instructions
   const prompt = buildPrompt({
     question: userQuery,
     context,
@@ -234,24 +183,21 @@ export async function answerWithRAG(
     maxAnswerChars: Math.floor((maxTokens / 1.5) * 4), // heuristic: roughly bytes/chars
   });
 
-  console.log(prompt);
-
-  // 4) Call Ollama
   const response = await callOllama(prompt, {
     model: OLLAMA_MODEL,
     maxTokens,
     temperature,
   });
-  console.log(response);
-  // Extract the best text we can
+
   const answerText =
-    (response && (response.text ?? response?.raw?.text)) ||
+    response.text ||
+    response?.raw?.response ||
     (typeof response.raw === "string" ? response.raw : "");
 
-  // 5) Prepare source metadata to return
   const sources = retrieved.map((r, i) => ({
     code: r.code,
-    title: r.meta?.title || r.meta?.source || `source_${i + 1}`,
+    text: r.text,
+    title: r.meta?.title || `source_${i + 1}`,
     distance: r.distance,
     meta: r.meta,
   }));

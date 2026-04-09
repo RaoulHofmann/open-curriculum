@@ -1,5 +1,11 @@
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
-const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || "nomic-embed-text";
+const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || "mxbai-embed-large";
+
+function normalise(v: number[]): number[] {
+  const mag = Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
+  if (mag === 0) return v;
+  return v.map((x) => x / mag);
+}
 
 export async function getOllamaEmbedding(prompt: string): Promise<number[]> {
   const response = await fetch(`${OLLAMA_HOST}/api/embeddings`, {
@@ -13,5 +19,11 @@ export async function getOllamaEmbedding(prompt: string): Promise<number[]> {
   }
 
   const data = (await response.json()) as { embedding: number[] };
-  return data.embedding;
+
+  // Verify + enforce unit norm
+  const raw = data.embedding;
+  const mag = Math.sqrt(raw.reduce((sum, x) => sum + x * x, 0));
+  console.debug(`[embedding] magnitude: ${mag.toFixed(6)}`); // remove once confirmed
+
+  return normalise(raw);
 }
