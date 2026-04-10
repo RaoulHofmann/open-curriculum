@@ -1,15 +1,30 @@
 <script setup lang="ts">
-import type { RagSource } from "~~/server/types";
+import type { RagSource } from "~/types";
 
-const { ask, result, error, loading } = useCurriculum();
+const {
+    ask,
+    search,
+    result,
+    ragAnswer,
+    error,
+    loading,
+    generating,
+    llmState,
+    initStatus,
+} = useCurriculum();
 
 const query = ref("fractions");
 const hasSearched = ref(false);
+const mode = ref<"search" | "ask">("ask");
 
 async function handleSearch() {
     if (!query.value.trim()) return;
     hasSearched.value = true;
-    await ask(query.value.trim());
+    if (mode.value === "ask") {
+        await ask(query.value.trim());
+    } else {
+        await search(query.value.trim());
+    }
 }
 
 onMounted(() => handleSearch());
@@ -41,17 +56,92 @@ const badge = (distance?: number) => {
                 </h1>
                 <p class="text-sm text-[var(--ui-text-muted)]">
                     Search the curriculum knowledge base using natural language.
+                    Runs entirely in your browser.
                 </p>
             </div>
 
-            <!-- Search bar -->
+            <!-- WebLLM model loading -->
+            <div
+                v-if="llmState.status === 'loading'"
+                class="mb-6 p-4 rounded-xl bg-[var(--ui-bg-muted)] border border-[var(--ui-border)]"
+            >
+                <div class="flex items-center gap-3 mb-2">
+                    <UIcon
+                        name="i-heroicons-arrow-path"
+                        class="w-4 h-4 animate-spin text-[var(--ui-primary)]"
+                    />
+                    <p class="text-sm font-medium text-[var(--ui-text)]">
+                        Loading WebLLM model…
+                    </p>
+                </div>
+                <div
+                    class="w-full h-2 bg-[var(--ui-bg-muted)] rounded-full overflow-hidden"
+                >
+                    <div
+                        class="h-full bg-[var(--ui-primary)] transition-all duration-300"
+                        :style="{ width: `${llmState.progress}%` }"
+                    />
+                </div>
+                <p
+                    class="text-xs text-[var(--ui-text-muted)] mt-1 text-right"
+                >
+                    {{ llmState.progress }}%
+                </p>
+            </div>
+
+            <!-- Embedding / init status -->
+            <div
+                v-else-if="initStatus"
+                class="mb-6 p-4 rounded-xl bg-[var(--ui-bg-muted)] border border-[var(--ui-border)]"
+            >
+                <div class="flex items-center gap-3">
+                    <UIcon
+                        name="i-heroicons-arrow-path"
+                        class="w-4 h-4 animate-spin text-[var(--ui-primary)]"
+                    />
+                    <p class="text-sm text-[var(--ui-text-muted)]">
+                        {{ initStatus }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Model error -->
+            <UAlert
+                v-if="llmState.status === 'error' && mode === 'ask'"
+                icon="i-heroicons-exclamation-triangle"
+                color="error"
+                variant="soft"
+                :description="llmState.error ?? 'Model failed to load'"
+                title="WebLLM Error"
+                class="mb-6"
+            />
+
+            <!-- Mode toggle + Search bar -->
+            <div class="flex gap-2 mb-4">
+                <UButton
+                    :variant="mode === 'search' ? 'solid' : 'outline'"
+                    size="sm"
+                    @click="mode = 'search'"
+                >
+                    Search
+                </UButton>
+                <UButton
+                    :variant="mode === 'ask' ? 'solid' : 'outline'"
+                    size="sm"
+                    icon="i-heroicons-sparkles"
+                    @click="mode = 'ask'"
+                >
+                    Ask (LLM)
+                </UButton>
+            </div>
+
             <div class="flex gap-2 mb-10">
                 <UInput
                     v-model="query"
                     placeholder="e.g. fractions, place value, geometry…"
                     size="lg"
                     class="flex-1"
-                    :disabled="loading"
+                    :disabled="loading || generating"
                     @keydown.enter="handleSearch"
                 >
                     <template #leading>
@@ -63,17 +153,37 @@ const badge = (distance?: number) => {
                 </UInput>
                 <UButton
                     size="lg"
-                    :loading="loading"
+                    :loading="loading || generating"
                     :disabled="!query.trim()"
-                    icon="i-heroicons-sparkles"
+                    :icon="
+                        mode === 'ask'
+                            ? 'i-heroicons-sparkles'
+                            : 'i-heroicons-magnifying-glass'
+                    "
                     @click="handleSearch"
                 >
-                    Search
+                    {{ mode === "ask" ? "Ask" : "Search" }}
                 </UButton>
             </div>
 
+            <!-- Generating indicator -->
+            <div
+                v-if="generating"
+                class="mb-6 p-4 rounded-xl bg-[var(--ui-bg-muted)] border border-[var(--ui-border)]"
+            >
+                <div class="flex items-center gap-3">
+                    <UIcon
+                        name="i-heroicons-arrow-path"
+                        class="w-4 h-4 animate-spin text-[var(--ui-primary)]"
+                    />
+                    <p class="text-sm text-[var(--ui-text-muted)]">
+                        WebLLM is generating an answer…
+                    </p>
+                </div>
+            </div>
+
             <!-- Loading skeleton -->
-            <div v-if="loading" class="space-y-3">
+            <div v-if="loading && !initStatus" class="space-y-3">
                 <USkeleton
                     class="h-28 w-full rounded-xl"
                     v-for="n in 4"
@@ -92,8 +202,35 @@ const badge = (distance?: number) => {
                 class="mb-6"
             />
 
+            <!-- RAG answer -->
+            <template v-if="ragAnswer && !generating">
+                <UCard
+                    class="mb-6 ring-1 ring-[var(--ui-primary)]"
+                    :ui="{ body: 'p-5' }"
+                >
+                    <template #header>
+                        <div class="flex items-center gap-2">
+                            <UIcon
+                                name="i-heroicons-sparkles"
+                                class="text-[var(--ui-primary)]"
+                            />
+                            <p
+                                class="text-sm font-semibold text-[var(--ui-text-highlighted)]"
+                            >
+                                AI Answer
+                            </p>
+                        </div>
+                    </template>
+                    <p
+                        class="text-sm text-[var(--ui-text)] leading-relaxed whitespace-pre-wrap"
+                    >
+                        {{ ragAnswer }}
+                    </p>
+                </UCard>
+            </template>
+
             <!-- Results -->
-            <template v-else-if="result && hasSearched">
+            <template v-if="result && hasSearched">
                 <!-- Source count -->
                 <div class="flex items-center justify-between mb-4">
                     <p class="text-sm font-medium text-[var(--ui-text-muted)]">
@@ -126,7 +263,6 @@ const badge = (distance?: number) => {
                         <div
                             class="flex items-start justify-between gap-4 mb-3"
                         >
-                            <!-- Code badge + title -->
                             <div class="flex items-center gap-2 flex-wrap">
                                 <UBadge
                                     v-if="source.code"
@@ -151,7 +287,6 @@ const badge = (distance?: number) => {
                                 </span>
                             </div>
 
-                            <!-- Match quality -->
                             <UBadge
                                 :color="badge(source.distance).color"
                                 variant="soft"
@@ -162,14 +297,12 @@ const badge = (distance?: number) => {
                             </UBadge>
                         </div>
 
-                        <!-- Description text -->
                         <p
                             class="text-sm text-[var(--ui-text)] leading-relaxed mb-3"
                         >
                             {{ source.text }}
                         </p>
 
-                        <!-- Examples -->
                         <template v-if="source.meta?.examples?.length">
                             <USeparator class="my-3" />
                             <div>
@@ -194,7 +327,6 @@ const badge = (distance?: number) => {
                             </div>
                         </template>
 
-                        <!-- General capabilities chips -->
                         <template
                             v-if="source.meta?.generalCapabilities?.length"
                         >
@@ -217,7 +349,7 @@ const badge = (distance?: number) => {
 
             <!-- Empty state -->
             <div
-                v-else-if="hasSearched && !loading"
+                v-else-if="hasSearched && !loading && !generating"
                 class="flex flex-col items-center justify-center py-20 text-center"
             >
                 <UIcon

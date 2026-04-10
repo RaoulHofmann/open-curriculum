@@ -23,4 +23,8 @@ logs
 .env.*
 !.env.example
 
+# Generated database (run `bun run ingest` to generate)
+public/curriculum.db
+
+# PDF source files
 server/files
