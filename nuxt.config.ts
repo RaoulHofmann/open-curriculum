@@ -1,20 +1,47 @@
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
-  modules: ["@nuxt/eslint", "nuxt-elysia", "@nuxt/ui"],
-  nitro: {
-    preset: "Bun",
-  },
+  modules: ["@nuxt/eslint", "@nuxt/ui"],
   css: ["~/assets/css/main.css"],
-  runtimeConfig: {
-    ollamaHost: process.env.OLLAMA_HOST || "http://localhost:11434",
-    embeddingModel: process.env.EMBEDDING_MODEL || "nomic-embed-text",
-    dbFileName: process.env.DB_FILE_NAME || "curriculum.sqlite",
+  ssr: false,
+  app: {
+    baseURL: "/open-curriculum/",
   },
   vite: {
+    plugins: [wasm(), topLevelAwait()],
+    server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      }
+    },
+    preview: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      }
+    },
     optimizeDeps: {
-      include: ["@vue/devtools-core", "@vue/devtools-kit", "@elysiajs/eden"],
+      exclude: ["@sqlite.org/sqlite-wasm"],
+      include: [
+        "@vue/devtools-core",
+        "@vue/devtools-kit",
+        "@huggingface/transformers",
+      ],
+    },
+  },
+  nitro: {
+    routeRules: {
+      "/**": {
+        headers: {
+          "Cross-Origin-Embedder-Policy": "require-corp",
+          "Cross-Origin-Opener-Policy": "same-origin",
+        },
+      },
     },
   },
 });
