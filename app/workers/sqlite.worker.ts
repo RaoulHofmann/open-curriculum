@@ -80,8 +80,28 @@ async function handleImport(payload: { dbFile: string; bytes: Uint8Array }) {
   db = null;
 
   if (opfsAvailable) {
-    await (sqlite3.oo1 as any).OpfsDb.importDb(opfsName, bytes);
-    db = new (sqlite3.oo1 as any).OpfsDb(opfsName, "w");
+    try {
+      await (sqlite3.oo1 as any).OpfsDb.importDb(opfsName, bytes);
+      db = new (sqlite3.oo1 as any).OpfsDb(opfsName, "w");
+    } catch {
+      // OPFS present but non-functional (e.g. missing COOP header) — fall back to memory
+      db = new sqlite3.oo1.DB(":memory:");
+      const p = sqlite3.wasm.allocFromTypedArray(bytes);
+      try {
+        const rc = sqlite3.capi.sqlite3_deserialize(
+          db.pointer!,
+          "main",
+          p,
+          bytes.length,
+          bytes.length,
+          sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE,
+        );
+        db.checkRc(rc);
+      } catch (e) {
+        sqlite3.wasm.dealloc(p);
+        throw e;
+      }
+    }
   } else {
     db = new sqlite3.oo1.DB(":memory:");
     const p = sqlite3.wasm.allocFromTypedArray(bytes);

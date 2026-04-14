@@ -8,12 +8,21 @@ export default defineNuxtConfig({
   modules: ["@nuxt/eslint", "@nuxt/ui"],
   css: ["~/assets/css/main.css"],
   ssr: false,
+  app: {
+    baseURL: "/open-curriculum/",
+    head: {
+      title: 'WA Curriculum Search',
+      htmlAttrs: {
+        lang: 'en'
+      },
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+      ]
+    }
+  },
   colorMode: {
     preference: "light",
     fallback: "light",
-  },
-  app: {
-    baseURL: "/open-curriculum/",
   },
   vite: {
     plugins: [wasm(), topLevelAwait()],
@@ -42,14 +51,6 @@ export default defineNuxtConfig({
     preset: "github_pages",
     experimental: {
       wasm: true,
-    },
-    routeRules: {
-      "/**": {
-        headers: {
-          "Cross-Origin-Embedder-Policy": "require-corp",
-          "Cross-Origin-Opener-Policy": "same-origin",
-        },
-      },
     },
   },
 });
