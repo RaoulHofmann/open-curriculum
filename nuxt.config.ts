@@ -9,19 +9,15 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   ssr: false,
   app: {
-    baseURL: "/open-curriculum/",
+    baseURL: "/",
     head: {
-      title: 'WA Curriculum Search',
+      title: "WA Curriculum Search",
       htmlAttrs: {
-        lang: 'en'
+        lang: "en",
       },
-      link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/open-curriculum/favicon.ico' },
-      ],
-      script: [
-        { src: '/open-curriculum/service-worker.js' },
-      ],
-    }
+      link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+      script: [{ src: "/service-worker.js" }],
+    },
   },
   colorMode: {
     preference: "light",
@@ -31,15 +27,15 @@ export default defineNuxtConfig({
     plugins: [wasm(), topLevelAwait()],
     server: {
       headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-      }
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+      },
     },
     preview: {
       headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-      }
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+      },
     },
     optimizeDeps: {
       exclude: ["@sqlite.org/sqlite-wasm"],
