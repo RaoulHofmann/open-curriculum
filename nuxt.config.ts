@@ -35,6 +35,9 @@ export default defineNuxtConfig({
     },
   },
   nitro: {
+    experimental: {
+      wasm: true,
+    },
     routeRules: {
       "/**": {
         headers: {

@@ -18,14 +18,14 @@ export const MODELS: EmbeddingModel[] = [
     name: "MiniLM",
     description: "Fast, lightweight (384-dim). Good for quick searches.",
     dimension: 384,
-    dbFile: "/curriculum-384.sqlite",
+    dbFile: "curriculum-384.sqlite",
   },
   {
     id: "mixedbread-ai/mxbai-embed-large-v1",
     name: "mxbai-embed-large",
     description: "High quality (1024-dim). Best accuracy for semantic search.",
     dimension: 1024,
-    dbFile: "/curriculum-1024.sqlite",
+    dbFile: "curriculum-1024.sqlite",
   },
 ];
 

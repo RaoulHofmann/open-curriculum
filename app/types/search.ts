@@ -1,11 +1,19 @@
-export interface ChunkMetadata {
-  yearLevel: string;
-  strand: string;
-  substrand: string;
+﻿export interface ChunkMetadata {
+  year_level: number | null;
+  strand: string | null;
+  substrand: string | null;
   code: string;
   title?: string;
   examples: string[];
-  generalCapabilities?: string[];
+  capabilities: string[];
+  image_url?: string;
+}
+
+export interface SearchFilters {
+  yearLevel?: number | number[];
+  strand?: string | string[];
+  substrand?: string | string[];
+  minSimilarity?: number;
 }
 
 export interface SearchResult {

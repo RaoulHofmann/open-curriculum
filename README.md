@@ -7,14 +7,16 @@ A browser-based semantic search tool for curriculum content. Runs entirely clien
 ```
 app/
 ├── lib/
-│   ├── db.ts           # SQLite WASM database layer with OPFS persistence
-│   ├── search.ts       # Cosine-distance vector search over embeddings
+│   ├── db.ts           # SQLite WASM database layer (communicates via Web Worker)
+│   ├── search.ts       # Hybrid vector + text-match search over embeddings
 │   ├── embeddings.ts   # Query expansion helpers
 │   └── models.ts       # Embedding model registry and Hugging Face pipeline
 ├── composables/
 │   └── useCurriculum.ts # Vue composable wiring search, DB, and model loading
 ├── components/
 │   └── ModelSelector.vue
+├── workers/
+│   └── sqlite.worker.ts # Web Worker running SQLite WASM with OPFS persistence
 └── pages/
     └── index.vue
 scripts/
@@ -23,17 +25,19 @@ scripts/
 
 ## Implementation Breakdown
 
-### SQLite WASM (`app/lib/db.ts`)
+### SQLite WASM (`app/lib/db.ts`, `app/workers/sqlite.worker.ts`)
 
-The database layer uses `@sqlite.org/sqlite-wasm`, the official SQLite WebAssembly build.
+The database layer uses `@sqlite.org/sqlite-wasm` running inside a Web Worker to avoid blocking the main thread. All SQLite operations are offloaded to the worker via message passing.
 
-**Initialization** — `sqlite3InitModule()` loads the WASM binary once. The module instance is cached and reused across all database operations.
+**Worker architecture** — `app/lib/db.ts` spawns a dedicated Web Worker (`sqlite.worker.ts`) on first use. Communication uses a request/response pattern with auto-incrementing message IDs. Each call to `queryAll()` or `queryOne()` posts a message to the worker and returns a promise that resolves when the worker responds.
+
+**Initialization** — The worker calls `sqlite3InitModule()` to load the WASM binary once. The module instance is cached and reused across all database operations.
 
 **OPFS persistence** — When the browser supports Origin Private File System (OPFS), databases are opened using `OpfsDatabase`, which persists across page reloads and sessions. On first load, the `.sqlite` file is fetched from the server and imported into OPFS via `OpfsDb.importDb()`. Subsequent loads open directly from OPFS, skipping the network fetch entirely.
 
 **Memory fallback** — When OPFS is unavailable (e.g. missing COOP/COEP headers, older browsers), an in-memory database is created and populated using `sqlite3_deserialize()` from the fetched bytes. Data must be re-fetched on each page load in this mode.
 
-**Query helpers** — `queryAll()` and `queryOne()` wrap SQLite WASM's `db.exec()` callback API into a simpler interface returning arrays of plain row objects, similar to what Turso/libsql's `.prepare().all()` provided.
+**Query helpers** — `queryAll()` and `queryOne()` in `db.ts` wrap the worker message-passing into a simple async interface returning arrays of plain row objects. The worker's `handleExec()` function runs `db.exec()` with the callback row mode.
 
 ### OPFS Requirements
 
@@ -48,24 +52,44 @@ These are configured in `nuxt.config.ts` for both Vite dev server and Nitro (pro
 
 ### Vector Search (`app/lib/search.ts`)
 
-Embeddings are stored as raw `BLOB` values (Float32 byte arrays) in the `chunks` table:
+Search uses a hybrid approach combining semantic embedding similarity with lexical text matching.
+
+**Database schema** — Curriculum items and their embeddings are stored in two tables:
 
 ```sql
-CREATE TABLE chunks (
+CREATE TABLE curriculum_items (
   id INTEGER PRIMARY KEY,
-  text TEXT,
-  code TEXT,
-  metadata TEXT,
-  embedding BLOB
-)
+  code TEXT NOT NULL,
+  text TEXT NOT NULL,
+  year_level INTEGER,
+  strand TEXT,
+  substrand TEXT,
+  examples TEXT,
+  capabilities TEXT,
+  image_data BLOB,
+  image_type TEXT
+);
+
+CREATE TABLE embeddings (
+  id INTEGER PRIMARY KEY,
+  curriculum_id INTEGER NOT NULL,
+  embedding BLOB NOT NULL,
+  FOREIGN KEY (curriculum_id) REFERENCES curriculum_items(id)
+);
 ```
 
-Since vanilla SQLite WASM doesn't include vector extension functions (`vector_distance_cos`, `vector32`), cosine distance is computed in JavaScript:
+Embeddings are stored as raw `BLOB` values (Float32 byte arrays).
+
+**Search flow:**
 
 1. All rows with embeddings are fetched from the database
 2. Each `BLOB` is reinterpreted as a `Float32Array` (zero-copy `ArrayBuffer` view)
 3. Cosine distance is computed against the query vector
-4. Results are sorted by distance and the top-k are returned
+4. A text-match score (0–1) is computed: exact phrase match → 1.0, partial word matches → proportional score
+5. The embedding distance is blended with the text-match score: `distance = distance * (1 - 0.3 * textMatchScore)`
+6. Results are sorted by blended distance and the top-k are returned
+
+This hybrid scoring ensures that results containing the exact search terms rank higher than semantically similar but textually distant results.
 
 ### Embedding Models (`app/lib/models.ts`)
 

@@ -96,7 +96,7 @@ const badge = (distance?: number) => {
         <UBadge
           variant="soft"
           color="neutral"
-          size="sm"
+          size="md"
           class="cursor-pointer"
           @click="openModelSelector"
         >
@@ -208,26 +208,26 @@ const badge = (distance?: number) => {
                   v-if="source.code"
                   variant="outline"
                   color="primary"
-                  size="sm"
+                  size="md"
                   class="font-mono tracking-tight"
                 >
                   {{ source.code }}
                 </UBadge>
                 <span
-                  v-if="source.meta?.yearLevel"
-                  class="text-xs text-[var(--ui-text-muted)]"
+                  v-if="source.meta?.year_level"
+                  class="text-base text-[var(--ui-text-muted)]"
                 >
-                  Year {{ source.meta.yearLevel }}
+                  Year {{ source.meta.year_level }}
                 </span>
                 <span
                   v-if="source.meta?.strand"
-                  class="text-xs text-[var(--ui-text-muted)]"
+                  class="text-base text-[var(--ui-text-muted)]"
                 >
                   · {{ source.meta.strand }}
                 </span>
                 <span
                   v-if="source.meta?.substrand"
-                  class="text-xs text-[var(--ui-text-muted)]"
+                  class="text-base text-[var(--ui-text-muted)]"
                 >
                   · {{ source.meta.substrand }}
                 </span>
@@ -236,7 +236,7 @@ const badge = (distance?: number) => {
               <UBadge
                 :color="badge(source.distance).color"
                 variant="soft"
-                size="sm"
+                size="md"
                 class="shrink-0"
               >
                 {{ badge(source.distance).label }}
@@ -244,10 +244,19 @@ const badge = (distance?: number) => {
             </div>
 
             <p
-              class="text-sm text-[var(--ui-text)] leading-relaxed mb-3 whitespace-pre-line"
+              class="text-base text-[var(--ui-text)] leading-relaxed mb-3 whitespace-pre-line"
             >
               {{ source.text }}
             </p>
+
+            <template v-if="source.meta?.image_url">
+              <img
+                :src="source.meta.image_url"
+                :alt="`Example for ${source.code}`"
+                class="max-w-full h-auto rounded-lg mb-3 border border-[var(--ui-border)]"
+                loading="lazy"
+              />
+            </template>
 
             <template v-if="source.meta?.examples?.length">
               <USeparator class="my-3" />
@@ -274,16 +283,16 @@ const badge = (distance?: number) => {
             </template>
 
             <template
-              v-if="source.meta?.generalCapabilities?.length"
+              v-if="source.meta?.capabilities?.length"
             >
               <div class="flex flex-wrap gap-1.5 mt-3">
                 <UBadge
                   v-for="cap in source.meta
-                      .generalCapabilities"
+                      .capabilities"
                   :key="cap"
                   variant="soft"
                   color="neutral"
-                  size="xs"
+                  size="md"
                 >
                   {{ cap }}
                 </UBadge>
@@ -301,7 +310,7 @@ const badge = (distance?: number) => {
           name="i-heroicons-magnifying-glass-circle"
           class="w-12 h-12 text-[var(--ui-text-dimmed)] mb-4"
         />
-        <p class="text-sm text-[var(--ui-text-muted)]">
+        <p class="text-base text-[var(--ui-text-muted)]">
           No results found. Try a different search term.
         </p>
       </div>

@@ -8,15 +8,19 @@
     "bun:dev": "bunx nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "ingest": "tsx scripts/ingest.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.0.1",
     "@nuxt/eslint": "1.15.2",
     "@nuxt/ui": "^4.6.0",
     "@sqlite.org/sqlite-wasm": "^3.51.2-build8",
-    "@tursodatabase/database": "^0.5.3",
+    "better-sqlite3": "^12.9.0",
+    "install": "^0.13.0",
     "nuxt": "^4.4.2",
+    "nuxt-security": "^2.5.1",
+    "pdfjs-dist": "^5.6.205",
     "tailwindcss": "^4.2.2",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.6.0",
@@ -24,5 +28,8 @@
     "vue-router": "^5.0.4",
     "web-sqlite-js": "^2.3.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "tsx": "^4.21.0"
+  }
 }
