@@ -1,8 +1,15 @@
 ﻿// @ts-ignore
 import Database from "better-sqlite3";
 import { pipeline } from "@huggingface/transformers";
-import { resolve } from "node:path";
-import { readFileSync, existsSync } from "node:fs";
+import { resolve, join, basename } from "node:path";
+import {
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  writeFileSync,
+  copyFileSync,
+} from "node:fs";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import sharp from "sharp";
 
@@ -38,12 +45,14 @@ interface LineContext {
   strand: string;
   substrand: string;
   page: number;
+  sourceFile: string;
 }
 
 interface Chunk {
   text: string;
   code: string;
   page: number;
+  sourceFile: string;
   metadata: {
     yearLevel: number;
     strand: string;
@@ -103,9 +112,7 @@ async function extractImagesFromPDF(
     }
     if (imgNames.length === 0) continue;
 
-    const resolveObj = (
-      name: string,
-    ): Promise<any> => {
+    const resolveObj = (name: string): Promise<any> => {
       return new Promise((resolve) => {
         let delivered = false;
         const deliver = (obj: any) => {
@@ -137,7 +144,9 @@ async function extractImagesFromPDF(
               const obj = commonObjs.get(name);
               if (obj) return deliver(obj);
             }
-          } catch { /* not resolved yet */ }
+          } catch {
+            /* not resolved yet */
+          }
           if (Date.now() < deadline) {
             setTimeout(poll, 50);
           } else {
@@ -146,7 +155,7 @@ async function extractImagesFromPDF(
         };
         setTimeout(poll, 50);
       });
-    }
+    };
 
     const resolved = new Map<string, any>();
     await Promise.all(
@@ -223,7 +232,11 @@ function cleanText(text: string): string {
     .trim();
 }
 
-function parseAndChunk(rawText: string, pageBoundaries: number[]): Chunk[] {
+function parseAndChunk(
+  rawText: string,
+  pageBoundaries: number[],
+  sourceFile: string,
+): Chunk[] {
   const lines = rawText.split("\n");
 
   let activeYear = 0;
@@ -258,6 +271,7 @@ function parseAndChunk(rawText: string, pageBoundaries: number[]): Chunk[] {
       strand: activeStrand,
       substrand: activeSubstrand,
       page,
+      sourceFile,
     });
 
     charOffset += raw.length + 1;
@@ -319,6 +333,7 @@ function parseAndChunk(rawText: string, pageBoundaries: number[]): Chunk[] {
       code,
       text,
       page: ctx.page,
+      sourceFile: ctx.sourceFile,
       metadata: {
         yearLevel: ctx.year,
         strand: ctx.strand,
@@ -337,51 +352,119 @@ function float32ArrayToBuffer(arr: Float32Array): Buffer {
   return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength);
 }
 
-async function ingest() {
-  const pdfPath = process.argv[2] ?? "curriculum.pdf";
-  const targetModel = process.argv[3];
+async function downloadModels(): Promise<void> {
+  console.log("\n=== Downloading Models ===\n");
 
-  if (!existsSync(pdfPath)) {
-    console.error(`PDF file not found: ${pdfPath}`);
-    console.log("Usage: npm run ingest -- <path-to-pdf> [model-id]");
+  const modelsDir = resolve("public/models");
+  if (!existsSync(modelsDir)) {
+    mkdirSync(modelsDir, { recursive: true });
+  }
+
+  for (const model of MODELS) {
+    console.log(`Downloading model: ${model.id}...`);
+
+    try {
+      // Use the pipeline to trigger model download
+      // The models will be cached by the library
+      const pipe = await pipeline("feature-extraction", model.id, {
+        revision: "main",
+      });
+
+      console.log(`  ✓ Model ${model.id} downloaded and cached`);
+
+      // Clean up the pipeline
+      if (pipe && typeof pipe === "object" && "dispose" in pipe) {
+        (pipe as any).dispose();
+      }
+    } catch (error) {
+      console.error(`  ✗ Failed to download model ${model.id}:`, error);
+      throw error;
+    }
+  }
+
+  console.log("\n✓ All models downloaded successfully\n");
+}
+
+async function getPdfFiles(): Promise<string[]> {
+  const pdfsDir = resolve("public/pdfs");
+
+  if (!existsSync(pdfsDir)) {
+    console.error(`PDFs directory not found: ${pdfsDir}`);
+    console.log("Creating pdfs directory...");
+    mkdirSync(pdfsDir, { recursive: true });
+    return [];
+  }
+
+  const files = readdirSync(pdfsDir)
+    .filter((file) => file.toLowerCase().endsWith(".pdf"))
+    .map((file) => join(pdfsDir, file));
+
+  return files;
+}
+
+async function ingest() {
+  const targetModel = process.argv[2];
+
+  // Get all PDF files from public/pdfs directory
+  const pdfFiles = await getPdfFiles();
+
+  if (pdfFiles.length === 0) {
+    console.error("No PDF files found in public/pdfs directory");
+    console.log("Please add PDF files to public/pdfs and run the script again");
     process.exit(1);
   }
 
-  console.log(`Parsing PDF: ${pdfPath}`);
-  const { text, pageBoundaries } = await extractTextAndPageBounds(pdfPath);
-  const chunks = parseAndChunk(text, pageBoundaries);
-  console.log(`Parsed ${chunks.length} curriculum items`);
+  console.log(`Found ${pdfFiles.length} PDF file(s):`);
+  pdfFiles.forEach((file) => console.log(`  - ${basename(file)}`));
 
-  console.log("Extracting images from PDF...");
-  const pageImages = await extractImagesFromPDF(pdfPath);
-  console.log(`Found ${pageImages.size} images`);
-console.log(pageImages)
-  console.log('----')
-  for (const chunk of chunks) {
-    const img = pageImages.get(chunk.page);
-    console.log(chunk.page, img)
-    if (img) {
-      chunk.image = img;
+  // Download models first
+  await downloadModels();
+
+  // Process all PDFs and collect chunks
+  const allChunks: Chunk[] = [];
+
+  for (const pdfPath of pdfFiles) {
+    console.log(`\nProcessing: ${basename(pdfPath)}`);
+
+    const { text, pageBoundaries } = await extractTextAndPageBounds(pdfPath);
+    const chunks = parseAndChunk(text, pageBoundaries, basename(pdfPath));
+    console.log(`  Found ${chunks.length} curriculum items`);
+
+    console.log("  Extracting images...");
+    const pageImages = await extractImagesFromPDF(pdfPath);
+    console.log(`  Found ${pageImages.size} images`);
+
+    for (const chunk of chunks) {
+      const img = pageImages.get(chunk.page);
+      if (img) {
+        chunk.image = img;
+      }
     }
-  }
-  console.log('-----')
 
+    allChunks.push(...chunks);
+  }
+
+  console.log(`\nTotal curriculum items: ${allChunks.length}`);
+
+  // Generate embeddings for each model
   for (const model of MODELS) {
     if (targetModel && model.id !== targetModel) continue;
 
-    console.log(`\nIngesting for ${model.id} (${model.dimension}d)...`);
+    console.log(
+      `\n=== Processing embeddings for ${model.id} (${model.dimension}d) ===\n`,
+    );
 
     const pipe = await pipeline("feature-extraction", model.id);
     const embeddings: Float32Array[] = [];
 
-    for (let i = 0; i < chunks.length; i++) {
-      const output = await pipe(chunks[i]!.text, {
+    for (let i = 0; i < allChunks.length; i++) {
+      const output = await pipe(allChunks[i]!.text, {
         pooling: "mean",
         normalize: true,
       });
       embeddings.push(new Float32Array(output.data as Float32Array));
-      if ((i + 1) % 10 === 0 || i === chunks.length - 1) {
-        process.stdout.write(`\r  Embedded ${i + 1}/${chunks.length}`);
+      if ((i + 1) % 10 === 0 || i === allChunks.length - 1) {
+        process.stdout.write(`\r  Embedded ${i + 1}/${allChunks.length}`);
       }
     }
     console.log();
@@ -401,6 +484,7 @@ console.log(pageImages)
         substrand TEXT,
         examples TEXT,
         capabilities TEXT,
+        source_file TEXT,
         image_data BLOB,
         image_type TEXT
       )
@@ -418,22 +502,28 @@ console.log(pageImages)
     db.exec("DELETE FROM embeddings");
     db.exec("DELETE FROM curriculum_items");
 
-    db.exec("CREATE INDEX IF NOT EXISTS idx_year_level ON curriculum_items(year_level)");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_strand ON curriculum_items(strand)");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_substrand ON curriculum_items(substrand)");
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_year_level ON curriculum_items(year_level)",
+    );
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_strand ON curriculum_items(strand)",
+    );
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS idx_substrand ON curriculum_items(substrand)",
+    );
     db.exec("CREATE INDEX IF NOT EXISTS idx_code ON curriculum_items(code)");
 
     const insertItem = db.prepare(
-      "INSERT INTO curriculum_items (id, code, text, year_level, strand, substrand, examples, capabilities, image_data, image_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO curriculum_items (id, code, text, year_level, strand, substrand, examples, capabilities, source_file, image_data, image_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     );
 
     const insertEmbedding = db.prepare(
-      "INSERT INTO embeddings (id, curriculum_id, embedding) VALUES (?, ?, ?)"
+      "INSERT INTO embeddings (id, curriculum_id, embedding) VALUES (?, ?, ?)",
     );
 
     const insertAll = db.transaction(() => {
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i]!;
+      for (let i = 0; i < allChunks.length; i++) {
+        const chunk = allChunks[i]!;
         const meta = chunk.metadata;
 
         insertItem.run(
@@ -445,8 +535,9 @@ console.log(pageImages)
           meta.substrand,
           JSON.stringify(meta.examples ?? []),
           JSON.stringify(meta.generalCapabilities ?? []),
+          chunk.sourceFile,
           chunk.image ? chunk.image.data : null,
-          chunk.image ? chunk.image.type : null
+          chunk.image ? chunk.image.type : null,
         );
 
         insertEmbedding.run(i + 1, i + 1, float32ArrayToBuffer(embeddings[i]!));
@@ -456,10 +547,13 @@ console.log(pageImages)
     insertAll();
     db.close();
 
-    console.log(`  Wrote ${dbPath}`);
+    console.log(`  ✓ Wrote ${dbPath}`);
   }
 
-  console.log("\nDone");
+  console.log("\n=== Ingest Complete ===\n");
 }
 
-ingest().catch(console.error);
+ingest().catch((error) => {
+  console.error("Ingest failed:", error);
+  process.exit(1);
+});

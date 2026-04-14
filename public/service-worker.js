@@ -14,6 +14,16 @@ if (typeof window === "undefined") {
       return;
     }
 
+    if (url.hostname === "huggingface.co" || url.hostname.includes("hf.co")) {
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
+      request = new Request(proxyUrl, {
+        method: request.method,
+        headers: request.headers,
+        mode: "cors",
+        credentials: "omit",
+      });
+    }
+
     // no-cors requests need credentials: omit to avoid COEP blocking them
     if (request.mode === "no-cors") {
       request = new Request(request.url, {
@@ -38,6 +48,7 @@ if (typeof window === "undefined") {
     const headers = new Headers(r.headers);
     headers.set("Cross-Origin-Embedder-Policy", "credentialless");
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
+    headers.set("Access-Control-Allow-Origin", "*");
 
     return new Response(r.body, {
       status: r.status,
@@ -59,7 +70,9 @@ if (typeof window === "undefined") {
       .register(document.currentScript.src, {
         scope: new URL(".", document.currentScript.src).pathname,
       })
-      .catch((e) => console.error("COOP/COEP Service Worker failed to register:", e));
+      .catch((e) =>
+        console.error("COOP/COEP Service Worker failed to register:", e),
+      );
 
     if (registration) {
       // New version installed — reload so it takes effect

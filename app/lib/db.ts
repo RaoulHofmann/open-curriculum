@@ -2,14 +2,20 @@ import type { EmbeddingModel } from "./models";
 
 let _worker: Worker | null = null;
 let _messageId = 0;
-const _pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
+const _pending = new Map<
+  number,
+  { resolve: (v: any) => void; reject: (e: Error) => void }
+>();
 let _initPromise: Promise<{ opfsAvailable: boolean }> | null = null;
 
 function getWorker(): Worker {
   if (_worker) return _worker;
-  _worker = new Worker(new URL("../workers/sqlite.worker.ts", import.meta.url), {
-    type: "module",
-  });
+  _worker = new Worker(
+    new URL("../workers/sqlite.worker.ts", import.meta.url),
+    {
+      type: "module",
+    },
+  );
   _worker.onmessage = (event: MessageEvent) => {
     const { id, result, error } = event.data;
     const pending = _pending.get(id);
@@ -50,16 +56,18 @@ async function ensureInitialized(): Promise<{ opfsAvailable: boolean }> {
 export async function loadDatabase(model: EmbeddingModel): Promise<void> {
   await ensureInitialized();
 
-  const openResult = await send<{ persistent: boolean; needsImport: boolean; alreadyOpen?: boolean }>(
-    "open",
-    { dbFile: model.dbFile },
-  );
+  const openResult = await send<{
+    persistent: boolean;
+    needsImport: boolean;
+    alreadyOpen?: boolean;
+  }>("open", { dbFile: model.dbFile });
 
   if (openResult.alreadyOpen) return;
 
   if (openResult.needsImport) {
     const config = useRuntimeConfig();
     const appBaseURL: string = config.app.baseURL;
+    console.log(`${appBaseURL}${model.dbFile}`);
     const response = await fetch(`${appBaseURL}${model.dbFile}`);
     const bytes = new Uint8Array(await response.arrayBuffer());
     await send("import", { dbFile: model.dbFile, bytes });

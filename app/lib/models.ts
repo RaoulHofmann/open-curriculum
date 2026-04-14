@@ -2,6 +2,7 @@ import { ref } from "vue";
 import {
   pipeline,
   type FeatureExtractionPipeline,
+  env,
 } from "@huggingface/transformers";
 
 export interface EmbeddingModel {
@@ -41,12 +42,12 @@ export const downloadStatus = ref("");
 export const showModelSelector = ref(!loadSavedModel());
 
 export const checkOnLoad = async () => {
-  const savedModel = loadSavedModel()
+  const savedModel = loadSavedModel();
   if (savedModel) {
     selectedModel.value = savedModel;
     await loadModel();
   }
-}
+};
 
 let _pipeline: FeatureExtractionPipeline | null = null;
 
@@ -58,9 +59,10 @@ function loadSavedModel(): EmbeddingModel | null {
 }
 
 export function selectModel(model: EmbeddingModel) {
+  console.log(loadSavedModel());
   selectedModel.value = model;
   localStorage.setItem(STORAGE_KEY, model.id);
-  showModelSelector.value = false;
+  // Don't close modal - let user click Download button
   _pipeline = null;
   isModelReady.value = false;
 }
@@ -89,6 +91,8 @@ export async function loadModel(): Promise<void> {
     downloadProgress.value = 100;
     downloadStatus.value = "Model loaded";
     isModelReady.value = true;
+    // Close modal after successful download
+    showModelSelector.value = false;
   } catch (e) {
     downloadStatus.value = `Failed to load model: ${e instanceof Error ? e.message : String(e)}`;
     throw e;
