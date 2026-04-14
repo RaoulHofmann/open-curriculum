@@ -16,7 +16,7 @@ export default defineNuxtConfig({
         lang: 'en'
       },
       link: [
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'icon', type: 'image/x-icon', href: '/open-curriculum/favicon.ico' },
       ],
       script: [
         { src: '/open-curriculum/service-worker.js' },
