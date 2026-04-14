@@ -8,6 +8,10 @@ export default defineNuxtConfig({
   modules: ["@nuxt/eslint", "@nuxt/ui"],
   css: ["~/assets/css/main.css"],
   ssr: false,
+  colorMode: {
+    preference: "light",
+    fallback: "light",
+  },
   app: {
     baseURL: "/open-curriculum/",
   },

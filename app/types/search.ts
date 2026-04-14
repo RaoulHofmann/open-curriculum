@@ -10,6 +10,7 @@
 }
 
 export interface SearchFilters {
+  code?: string;
   yearLevel?: number | number[];
   strand?: string | string[];
   substrand?: string | string[];

@@ -81,3 +81,10 @@ export async function queryOne(
   const rows = await queryAll(sql, bind);
   return rows[0];
 }
+
+export async function clearOPFS(): Promise<void> {
+  await ensureInitialized();
+  await send("clear");
+  // Reset init so next loadDatabase re-initializes
+  _initPromise = null;
+}

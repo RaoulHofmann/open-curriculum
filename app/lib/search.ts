@@ -33,6 +33,11 @@ function buildFilterSQL(filters?: SearchFilters): { where: string; params: any[]
 
   if (!filters) return { where: "", params: [] };
 
+  if (filters.code !== undefined && filters.code.length > 0) {
+    conditions.push("c.code LIKE ?");
+    params.push(`%${filters.code}%`);
+  }
+
   if (filters.yearLevel !== undefined) {
     const years = Array.isArray(filters.yearLevel) ? filters.yearLevel : [filters.yearLevel];
     if (years.length === 1) {
@@ -79,8 +84,6 @@ export interface EmbeddingResult {
   substrand: string | null;
   examples: string;
   capabilities: string;
-  image_data: Uint8Array | null;
-  image_type: string | null;
   distance: number;
 }
 
@@ -94,14 +97,13 @@ export async function searchEmbeddings(
   await loadDatabase(model);
   const { where, params } = buildFilterSQL(filters);
   const sql = `
-    SELECT c.id, c.code, c.text, c.year_level, c.strand, c.substrand, c.examples, c.capabilities, c.image_data, c.image_type, e.embedding
+    SELECT c.id, c.code, c.text, c.year_level, c.strand, c.substrand, c.examples, c.capabilities, e.embedding
     FROM curriculum_items c
     JOIN embeddings e ON e.curriculum_id = c.id
     ${where}
   `;
 
   const rows = await queryAll(sql, params);
-
   const results: EmbeddingResult[] = rows.map((row) => {
     const embedding = new Float32Array(
       (row.embedding as Uint8Array).buffer,
@@ -110,6 +112,7 @@ export async function searchEmbeddings(
     );
     const baseDistance = cosineDistance(queryVector, embedding);
     const boost = queryText ? 0.3 * textMatchScore(queryText, row.text as string) : 0;
+
     return {
       id: row.id as number,
       code: row.code as string,
@@ -119,8 +122,6 @@ export async function searchEmbeddings(
       substrand: row.substrand as string | null,
       examples: row.examples as string,
       capabilities: row.capabilities as string,
-      image_data: row.image_data as Uint8Array | null,
-      image_type: row.image_type as string | null,
       distance: baseDistance * (1 - boost),
     };
   });

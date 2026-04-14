@@ -134,6 +134,24 @@ function handleClose() {
   return { success: true };
 }
 
+async function handleClear() {
+  db?.close();
+  db = null;
+  _currentDbFile = null;
+
+  try {
+    const root = await navigator.storage.getDirectory();
+    // @ts-ignore — entries() is async iterable in OPFS
+    for await (const [name] of root.entries()) {
+      await root.removeEntry(name, { recursive: true });
+    }
+  } catch (e) {
+    throw new Error(`Failed to clear OPFS: ${e}`);
+  }
+
+  return { success: true };
+}
+
 self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
   const { type, id, payload } = event.data;
 
@@ -155,6 +173,9 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
         break;
       case "close":
         result = handleClose();
+        break;
+      case "clear":
+        result = await handleClear();
         break;
       default:
         throw new Error(`Unknown message type: ${type}`);

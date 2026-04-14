@@ -4,17 +4,18 @@ import { pipeline } from "@huggingface/transformers";
 import { resolve } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import sharp from "sharp";
 
 const MODELS = [
   {
     id: "Xenova/all-MiniLM-L6-v2",
     dimension: 384,
-    outFile: "curriculum-384.sqlite",
+    outFile: "public/curriculum-384.sqlite",
   },
   {
     id: "mixedbread-ai/mxbai-embed-large-v1",
     dimension: 1024,
-    outFile: "curriculum-1024.sqlite",
+    outFile: "public/curriculum-1024.sqlite",
   },
 ];
 
@@ -93,45 +94,105 @@ async function extractImagesFromPDF(
     const commonObjs = page.commonObjs;
     const pageObjs = page.objs;
 
+    const imgNames: string[] = [];
     for (let i = 0; i < operatorList.fnArray.length; i++) {
-      const fn = operatorList.fnArray[i];
+      if (operatorList.fnArray[i] === 85) {
+        const name = operatorList.argsArray[i]?.[0];
+        if (name) imgNames.push(name);
+      }
+    }
+    if (imgNames.length === 0) continue;
 
-      // OPS.paintImageXObject = 85
-      if (fn === 85) {
-        const args = operatorList.argsArray[i];
-        const imgName = args?.[0];
-        if (!imgName) continue;
+    const resolveObj = (
+      name: string,
+    ): Promise<any> => {
+      return new Promise((resolve) => {
+        let delivered = false;
+        const deliver = (obj: any) => {
+          if (delivered) return;
+          delivered = true;
+          resolve(obj ?? null);
+        };
 
         try {
-          let imgObj = pageObjs.get(imgName) ?? commonObjs.get(imgName);
-
-          if (imgObj && imgObj.data) {
-            const imgData = imgObj.data as Uint8Array;
-            const width = imgObj.width ?? 0;
-            const height = imgObj.height ?? 0;
-
-            if (width < 50 || height < 50) continue;
-
-            let type = "image/png";
-            if (imgData[0] === 0xff && imgData[1] === 0xd8) {
-              type = "image/jpeg";
-            } else if (
-              imgData[0] === 0x47 &&
-              imgData[1] === 0x49 &&
-              imgData[2] === 0x46
-            ) {
-              type = "image/gif";
-            }
-
-            images.set(pageNum, {
-              data: Buffer.from(imgData),
-              type,
-            });
-            break;
+          if (pageObjs.has(name)) {
+            pageObjs.get(name, deliver);
+          } else if (commonObjs.has(name)) {
+            commonObjs.get(name, deliver);
           }
         } catch {
-          // Skip if image can't be retrieved
+          // not yet registered
         }
+
+        // Fallback: poll for up to 2s in case the callback never fires
+        const deadline = Date.now() + 2000;
+        const poll = () => {
+          if (delivered) return;
+          try {
+            if (pageObjs.has(name)) {
+              const obj = pageObjs.get(name);
+              if (obj) return deliver(obj);
+            }
+            if (commonObjs.has(name)) {
+              const obj = commonObjs.get(name);
+              if (obj) return deliver(obj);
+            }
+          } catch { /* not resolved yet */ }
+          if (Date.now() < deadline) {
+            setTimeout(poll, 50);
+          } else {
+            resolve(null);
+          }
+        };
+        setTimeout(poll, 50);
+      });
+    }
+
+    const resolved = new Map<string, any>();
+    await Promise.all(
+      imgNames.map(async (name) => {
+        const obj = await resolveObj(name);
+        if (obj) resolved.set(name, obj);
+      }),
+    );
+
+    for (const imgName of imgNames) {
+      try {
+        const imgObj = resolved.get(imgName);
+        if (!imgObj?.data) continue;
+
+        const imgData = imgObj.data as Uint8Array;
+        const width = imgObj.width ?? 0;
+        const height = imgObj.height ?? 0;
+
+        if (width < 50 || height < 50) continue;
+
+        let type = "image/png";
+        if (imgData[0] === 0xff && imgData[1] === 0xd8) {
+          type = "image/jpeg";
+        } else if (
+          imgData[0] === 0x47 &&
+          imgData[1] === 0x49 &&
+          imgData[2] === 0x46
+        ) {
+          type = "image/gif";
+        }
+
+        let data: Buffer;
+        if (type === "image/png") {
+          data = await sharp(Buffer.from(imgData), {
+            raw: { width, height, channels: 4 },
+          })
+            .png()
+            .toBuffer();
+        } else {
+          data = Buffer.from(imgData);
+        }
+
+        images.set(pageNum, { data, type });
+        break;
+      } catch {
+        // Skip if image can't be retrieved
       }
     }
   }
@@ -294,13 +355,16 @@ async function ingest() {
   console.log("Extracting images from PDF...");
   const pageImages = await extractImagesFromPDF(pdfPath);
   console.log(`Found ${pageImages.size} images`);
-
+console.log(pageImages)
+  console.log('----')
   for (const chunk of chunks) {
     const img = pageImages.get(chunk.page);
+    console.log(chunk.page, img)
     if (img) {
       chunk.image = img;
     }
   }
+  console.log('-----')
 
   for (const model of MODELS) {
     if (targetModel && model.id !== targetModel) continue;

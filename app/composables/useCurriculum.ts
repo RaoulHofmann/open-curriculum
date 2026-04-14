@@ -1,7 +1,7 @@
 ﻿import { ref } from "vue";
-import type { SearchResult } from "~/types/search";
+import type { SearchResult, SearchFilters } from "~/types/search";
 import { getEmbedding, expandQuery } from "~/lib/embeddings";
-import { loadDatabase, queryOne } from "~/lib/db";
+import { loadDatabase, queryOne, queryAll } from "~/lib/db";
 import { searchEmbeddings } from "~/lib/search";
 import {
   selectedModel,
@@ -50,12 +50,19 @@ function buildMeta(row: Record<string, any>): SearchResult["meta"] {
   };
 }
 
+export interface FilterOptions {
+  yearLevels: number[];
+  strands: string[];
+  substrandsByStrand: Record<string, string[]>;
+}
+
 export function useCurriculum() {
   const results = ref<SearchResult[] | null>(null);
   const error = ref<Error | null>(null);
   const loading = ref(false);
+  const filterOptions = ref<FilterOptions | null>(null);
 
-  const search = async (query: string) => {
+  const search = async (query: string, filters?: SearchFilters) => {
     if (!isModelReady.value) {
       error.value = new Error("Model is not loaded yet. Please select and download a model first.");
       return;
@@ -95,19 +102,42 @@ export function useCurriculum() {
       const hasYear = !!match;
       const year = hasYear && match![1] ? parseInt(match![1], 10) : null;
 
+      const searchFilters: SearchFilters = {
+        ...filters,
+        ...(hasYear && year ? { yearLevel: year } : {}),
+      };
+
       const expandedQuery = expandQuery(queryTrimmed);
       const queryVector = await getEmbedding(expandedQuery);
       const topK = await searchEmbeddings(
         selectedModel.value,
         queryVector,
         20,
-        hasYear && year ? { yearLevel: year } : undefined,
+        Object.keys(searchFilters).length > 0 ? searchFilters : undefined,
         queryTrimmed,
       );
 
-      results.value = topK
-        .slice(0, 5)
-        .map((row) => ({
+      let imageMap = new Map<number, { data: Uint8Array; type: string }>();
+      if (topK.length > 0) {
+        const ids = topK.map((r) => r.id);
+        const placeholders = ids.map(() => "?").join(",");
+        const imageRows = await queryAll(
+          `SELECT id, image_data, image_type FROM curriculum_items WHERE id IN (${placeholders})`,
+          ids,
+        );
+        for (const row of imageRows) {
+          if (row.image_data && row.image_type) {
+            imageMap.set(row.id as number, {
+              data: row.image_data as Uint8Array,
+              type: row.image_type as string,
+            });
+          }
+        }
+      }
+
+      results.value = topK.map((row) => {
+        const img = imageMap.get(row.id);
+        return {
           code: row.code,
           text: row.text,
           distance: row.distance,
@@ -118,9 +148,10 @@ export function useCurriculum() {
             code: row.code,
             examples: JSON.parse(row.examples ?? "[]"),
             capabilities: JSON.parse(row.capabilities ?? "[]"),
-            image_url: buildImageUrl(row.image_data, row.image_type),
+            image_url: img ? buildImageUrl(img.data, img.type) : undefined,
           },
-        }));
+        };
+      });
     } catch (e) {
       error.value = e instanceof Error ? e : new Error(String(e));
     } finally {
@@ -128,11 +159,41 @@ export function useCurriculum() {
     }
   };
 
+  const fetchFilterOptions = async (): Promise<FilterOptions> => {
+    if (filterOptions.value) return filterOptions.value;
+
+    await loadDatabase(selectedModel.value);
+
+    const [yearRows, strandRows, substrandRows] = await Promise.all([
+      queryAll("SELECT DISTINCT year_level FROM curriculum_items WHERE year_level IS NOT NULL ORDER BY year_level"),
+      queryAll("SELECT DISTINCT strand FROM curriculum_items WHERE strand IS NOT NULL ORDER BY strand"),
+      queryAll("SELECT DISTINCT strand, substrand FROM curriculum_items WHERE strand IS NOT NULL AND substrand IS NOT NULL ORDER BY strand, substrand"),
+    ]);
+
+    const yearLevels = yearRows.map((r) => r.year_level as number);
+    const strands = strandRows.map((r) => r.strand as string);
+
+    const substrandsByStrand: Record<string, string[]> = {};
+    for (const row of substrandRows) {
+      const strand = row.strand as string;
+      const substrand = row.substrand as string;
+      if (!substrandsByStrand[strand]) {
+        substrandsByStrand[strand] = [];
+      }
+      substrandsByStrand[strand].push(substrand);
+    }
+
+    filterOptions.value = { yearLevels, strands, substrandsByStrand };
+    return filterOptions.value;
+  };
+
   return {
     search,
     results,
     error,
     loading,
+    filterOptions,
+    fetchFilterOptions,
     selectedModel,
     checkOnLoad,
     isModelReady,
