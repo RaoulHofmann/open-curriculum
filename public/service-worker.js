@@ -4,11 +4,12 @@
 
 if (typeof window === "undefined") {
   // --- Service worker context ---
-
   self.addEventListener("install", () => self.skipWaiting());
   self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
   async function handleFetch(request) {
+    console.log(request);
+
     // Skip opaque/immutable responses
     if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
       return;
@@ -16,7 +17,7 @@ if (typeof window === "undefined") {
 
     if (
       request?.hostname === "huggingface.co" ||
-      request?.hostname.includes("hf.co")
+      request?.hostname?.includes("hf.co")
     ) {
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
       request = new Request(proxyUrl, {
