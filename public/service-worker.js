@@ -14,7 +14,10 @@ if (typeof window === "undefined") {
       return;
     }
 
-    if (url.hostname === "huggingface.co" || url.hostname.includes("hf.co")) {
+    if (
+      request.url?.hostname === "huggingface.co" ||
+      request.url?.hostname.includes("hf.co")
+    ) {
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
       request = new Request(proxyUrl, {
         method: request.method,
