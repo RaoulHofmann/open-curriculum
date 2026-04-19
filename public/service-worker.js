@@ -8,17 +8,12 @@ if (typeof window === "undefined") {
   self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
   async function handleFetch(request) {
-    console.log(request);
-
     // Skip opaque/immutable responses
     if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
       return;
     }
 
-    if (
-      request?.hostname === "huggingface.co" ||
-      request?.hostname?.includes("hf.co")
-    ) {
+    if (request?.url === "huggingface.co" || request?.url?.includes("hf.co")) {
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
       request = new Request(proxyUrl, {
         method: request.method,
@@ -26,6 +21,7 @@ if (typeof window === "undefined") {
         mode: "cors",
         credentials: "omit",
       });
+      console.log(proxyUrl, request);
     }
 
     // no-cors requests need credentials: omit to avoid COEP blocking them
