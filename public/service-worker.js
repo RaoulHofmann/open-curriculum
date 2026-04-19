@@ -21,7 +21,7 @@ if (typeof window === "undefined") {
         mode: "cors",
         credentials: "omit",
       });
-      console.log(proxyUrl, request);
+      console.log(request);
     }
 
     // no-cors requests need credentials: omit to avoid COEP blocking them
@@ -44,6 +44,8 @@ if (typeof window === "undefined") {
 
     const r = await fetch(request).catch((e) => console.error(e));
     if (!r || r.status === 0) return r;
+
+    console.log(r);
 
     const headers = new Headers(r.headers);
     headers.set("Cross-Origin-Embedder-Policy", "credentialless");
