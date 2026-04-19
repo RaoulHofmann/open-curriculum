@@ -15,8 +15,8 @@ if (typeof window === "undefined") {
     }
 
     if (
-      request.url?.hostname === "huggingface.co" ||
-      request.url?.hostname.includes("hf.co")
+      request?.hostname === "huggingface.co" ||
+      request?.hostname.includes("hf.co")
     ) {
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
       request = new Request(proxyUrl, {
