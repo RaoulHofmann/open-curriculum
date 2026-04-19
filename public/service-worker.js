@@ -13,7 +13,10 @@ if (typeof window === "undefined") {
       return;
     }
 
-    if (request?.url === "huggingface.co" || request?.url?.includes("hf.co")) {
+    if (
+      request?.url?.includes("huggingface.co") ||
+      request?.url?.includes("hf.co")
+    ) {
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
       request = new Request(proxyUrl, {
         method: request.method,
