@@ -423,6 +423,14 @@ watch(isModelReady, (ready) => {
               variant="ghost"
               color="neutral"
               size="xs"
+              to="/about"
+            >
+              About
+            </UButton>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
               :loading="clearing"
               @click="handleClearCache"
             >

@@ -26,11 +26,15 @@ const MODELS = [
   },
 ];
 
-const CONTENT_CODE_RE = /(WA\d[A-Z0-9]+)/g;
+const CONTENT_CODE_RE = /(WA[A-Z\d][A-Z0-9]+)/g;
 const FOR_EXAMPLE_RE = /For example:/i;
 const GC_LINE_RE = /General Capabilities:\s*(.*)/i;
 const BULLET_RE = /^[•\-\*]\s*/;
+const PRE_PRIMARY_RE = /^Pre-primary$/i;
+const YEAR_RE = /^Year\s+(\d+)[A-Za-z]?$/i;
+
 const KNOWN_STRANDS = new Set([
+  // Mathematics
   "Number and algebra",
   "Measurement and geometry",
   "Probability and statistics",
@@ -38,7 +42,125 @@ const KNOWN_STRANDS = new Set([
   "Space",
   "Statistics",
   "Probability",
+  // English
+  "Language",
+  "Literature",
+  "Texts and human experiences",
+  // HASS
+  "Knowledge and understanding",
+  "Geography",
+  "History",
+  "Humanities and Social Sciences skills",
+  // Science
+  "Biological sciences",
+  "Chemical sciences",
+  "Earth and space sciences",
+  "Physical sciences",
+  "Science inquiry",
+  "Science understanding",
+  // Technologies
+  "Digital systems",
+  "Digital implementation",
+  "Design thinking skills",
+  "Contexts",
+  "Engineering principles and systems",
+  "Food and fibre production",
+  "Food specialisations",
+  "Materials and technologies specialisations",
 ]);
+
+const KNOWN_CAPABILITIES = new Set([
+  "Literacy",
+  "Numeracy",
+  "Critical and creative thinking",
+  "Digital literacy",
+  "Ethical understanding",
+  "Personal and social capability",
+  "Personal and social capabilities",
+  "Intercultural understanding",
+]);
+
+const KNOWN_SUBSTRANDS = new Set([
+  // English - Language
+  "Language for interacting with others",
+  "Language for expressing and developing ideas",
+  "Text structure, organisation and features",
+  "Phonics and word knowledge",
+  // English - Literature
+  "Creating literature",
+  "Engaging with and responding to literature",
+  "Examining literature",
+  "Literature and contexts",
+  // HASS - Knowledge and understanding
+  "Civics and Citizenship",
+  "Economics and Business",
+  "Sustainability",
+  // HASS - Inquiry skills
+  "Questioning",
+  "Analysing",
+  "Evaluating",
+  // Science - Science inquiry
+  "Questioning and predicting",
+  "Planning and conducting",
+  "Processing, modelling and analysing",
+  "Processing and analysing",
+  "Communicating",
+  // Digital Tech
+  "Data representation",
+  "Privacy and security",
+  "Investigating and defining",
+  "Designing",
+  "Producing and implementing",
+  "Project management",
+  // Design Tech
+  "Investigating",
+]);
+
+const SUBSTRAND_TO_STRAND: Record<string, string> = {
+  // English
+  "Language for interacting with others": "Language",
+  "Language for expressing and developing ideas": "Language",
+  "Text structure, organisation and features": "Language",
+  "Phonics and word knowledge": "Language",
+  "Creating literature": "Literature",
+  "Engaging with and responding to literature": "Literature",
+  "Examining literature": "Literature",
+  "Literature and contexts": "Literature",
+  // HASS
+  "Geography": "Knowledge and understanding",
+  "History": "Knowledge and understanding",
+  "Civics and Citizenship": "Knowledge and understanding",
+  "Economics and Business": "Knowledge and understanding",
+  "Sustainability": "Knowledge and understanding",
+  "Questioning": "Humanities and Social Sciences skills",
+  "Analysing": "Humanities and Social Sciences skills",
+  "Evaluating": "Humanities and Social Sciences skills",
+  // Science
+  "Biological sciences": "Science understanding",
+  "Chemical sciences": "Science understanding",
+  "Earth and space sciences": "Science understanding",
+  "Physical sciences": "Science understanding",
+  "Questioning and predicting": "Science inquiry",
+  "Planning and conducting": "Science inquiry",
+  "Processing, modelling and analysing": "Science inquiry",
+  "Processing and analysing": "Science inquiry",
+  "Communicating": "Science inquiry",
+  // Digital Tech
+  "Data representation": "Digital systems",
+  "Privacy and security": "Digital systems",
+  "Digital implementation": "Digital implementation",
+  "Investigating and defining": "Design thinking skills",
+  "Designing": "Design thinking skills",
+  "Producing and implementing": "Design thinking skills",
+  "Evaluating": "Design thinking skills",
+  "Project management": "Design thinking skills",
+  // Design Tech
+  "Engineering principles and systems": "Contexts",
+  "Food and fibre production": "Contexts",
+  "Food specialisations": "Contexts",
+  "Materials and technologies specialisations": "Contexts",
+  "Investigating": "Design thinking skills",
+};
 
 interface LineContext {
   year: number;
@@ -250,9 +372,12 @@ function parseAndChunk(
   for (let li = 0; li < lines.length; li++) {
     const raw = lines[li]!;
     const line = raw.replace(/\f/g, "").trim();
-    const yearMatch = line.match(/^Year\s+(\d+)[A-Za-z]?$/i);
+    const yearMatch = line.match(YEAR_RE);
 
-    if (yearMatch) {
+    if (PRE_PRIMARY_RE.test(line)) {
+      activeYear = 0;
+      pendingSubstrand = false;
+    } else if (yearMatch) {
       activeYear = Number(yearMatch[1]);
       pendingSubstrand = false;
     } else if (KNOWN_STRANDS.has(line)) {
@@ -297,16 +422,71 @@ function parseAndChunk(
 
     sectionOffset += preceding.length + code.length;
 
-    const exampleMatch = FOR_EXAMPLE_RE.exec(body);
+    // Extract capabilities and substrand from between code and description
+    const bodyLines = body.split("\n");
+    const capabilities: string[] = [];
+    let bodySubstrand: string | null = null;
+    const remainingBody: string[] = [];
+
+    for (const rawLine of bodyLines) {
+      const trimmed = rawLine.trim();
+      if (!bodySubstrand && KNOWN_CAPABILITIES.has(trimmed)) {
+        capabilities.push(trimmed);
+      } else if (
+        !bodySubstrand &&
+        trimmed.length > 0 &&
+        (KNOWN_STRANDS.has(trimmed) || KNOWN_SUBSTRANDS.has(trimmed)) &&
+        remainingBody.every((l) => !l.trim())
+      ) {
+        bodySubstrand = trimmed;
+      } else {
+        remainingBody.push(rawLine);
+      }
+    }
+
+    // Use remaining body for description/examples
+    let processedBody = remainingBody.join("\n");
+
+    // If substrand was detected but no body follows, or body is only
+    // "For example:" with no preceding text, treat substrand as description
+    if (bodySubstrand) {
+      const bodyEmpty = !processedBody.trim();
+      const exampleMatchTemp = FOR_EXAMPLE_RE.exec(processedBody);
+      const descBeforeExample = exampleMatchTemp
+        ? processedBody.slice(0, exampleMatchTemp.index).trim()
+        : "";
+      const forExampleOnly = exampleMatchTemp && !descBeforeExample;
+
+      if (bodyEmpty || forExampleOnly) {
+        processedBody = bodySubstrand;
+        bodySubstrand = null;
+      }
+    }
+
+    // Resolve strand/substrand: use line scanner's context as base,
+    // only use body substrand if line scanner didn't find a specific strand
+    let resolvedStrand = ctx.strand;
+    let resolvedSubstrand = ctx.substrand;
+
+    if (bodySubstrand && ctx.strand === "Unknown") {
+      // Line scanner didn't find a strand — use body substrand to infer one
+      resolvedStrand = SUBSTRAND_TO_STRAND[bodySubstrand] ?? ctx.strand;
+      resolvedSubstrand = bodySubstrand;
+    } else if (bodySubstrand && KNOWN_SUBSTRANDS.has(bodySubstrand)) {
+      // Line scanner found a strand, and body has a genuine substrand (not a strand name)
+      resolvedSubstrand = bodySubstrand;
+    }
+
+    const exampleMatch = FOR_EXAMPLE_RE.exec(processedBody);
     const description = exampleMatch
-      ? body.slice(0, exampleMatch.index).trim()
-      : body.trim();
-    const afterExamples = exampleMatch ? body.slice(exampleMatch.index) : "";
+      ? processedBody.slice(0, exampleMatch.index).trim()
+      : processedBody.trim();
+    const afterExamples = exampleMatch ? processedBody.slice(exampleMatch.index) : "";
 
     const gcMatch = GC_LINE_RE.exec(afterExamples);
     const generalCapabilities = gcMatch
       ? gcMatch[1]!.split(",").map((s) => s.trim())
-      : [];
+      : capabilities;
 
     const examples = afterExamples
       .split("\n")
@@ -318,8 +498,8 @@ function parseAndChunk(
     const text = [
       `Content code: ${code}`,
       `Year level: ${ctx.year}`,
-      `Strand: ${ctx.strand}`,
-      `Sub-strand: ${ctx.substrand}`,
+      `Strand: ${resolvedStrand}`,
+      `Sub-strand: ${resolvedSubstrand}`,
       `Description: ${cleanText(description)}`,
       examples.length ? `Examples: ${examples.join(" | ")}` : "",
       generalCapabilities.length
@@ -336,8 +516,8 @@ function parseAndChunk(
       sourceFile: ctx.sourceFile,
       metadata: {
         yearLevel: ctx.year,
-        strand: ctx.strand,
-        substrand: ctx.substrand,
+        strand: resolvedStrand,
+        substrand: resolvedSubstrand,
         code,
         examples,
         ...(generalCapabilities.length ? { generalCapabilities } : {}),
