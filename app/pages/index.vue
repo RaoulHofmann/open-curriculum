@@ -145,11 +145,17 @@ watch(isModelReady, (ready) => {
     <!-- Hero Header -->
     <header class="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
       <div class="max-w-screen-2xl mx-auto px-6 py-12">
-        <div class="flex items-center gap-2 mb-4">
-          <UIcon name="i-heroicons-book-open" class="w-8 h-8 text-teal-600 dark:text-teal-400" />
-          <span class="text-sm font-semibold tracking-widest uppercase text-teal-600 dark:text-teal-400">
-            Open Curriculum
-          </span>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <UIcon name="i-heroicons-book-open" class="w-8 h-8 text-teal-600 dark:text-teal-400" />
+            <span class="text-sm font-semibold tracking-widest uppercase text-teal-600 dark:text-teal-400">
+              Open Curriculum
+            </span>
+          </div>
+          <UButton variant="ghost" color="neutral" size="sm" to="/about">
+            <UIcon name="i-heroicons-information-circle" class="w-4 h-4 mr-1" />
+            About
+          </UButton>
         </div>
         <h1 class="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-3">
           WA Curriculum Explorer
