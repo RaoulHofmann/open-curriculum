@@ -296,7 +296,7 @@ watch(isModelReady, (ready) => {
       </div>
 
       <!-- Info Cards -->
-      <div v-if="!hasSearched && !loading" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div v-if="!hasSearched && !loading" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
           <div class="flex items-center gap-3 mb-3">
             <div class="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-950 flex items-center justify-center">
@@ -305,32 +305,90 @@ watch(isModelReady, (ready) => {
             <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Semantic Search</h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            Search by meaning, not just keywords. Ask questions naturally and find relevant curriculum content.
+            Uses <strong class="text-zinc-700 dark:text-zinc-300">embedding models</strong> to convert
+            text into numerical vectors. Text with similar meaning produces similar vectors, so the
+            app can find conceptually related content even when keywords don't match exactly.
+            The search also blends in keyword matching to boost exact phrase hits.
           </p>
         </div>
 
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
           <div class="flex items-center gap-3 mb-3">
             <div class="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-academic-cap" class="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <UIcon name="i-heroicons-shield-check" class="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Year Levels</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">100% Client-Side</h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            Filter by year level to find age-appropriate content descriptions and learning outcomes.
+            No server, no API calls, no data leaves your machine. All search, embedding, and
+            database operations happen entirely in your browser. No analytics, no cookies, no
+            third-party tracking.
+          </p>
+        </div>
+
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center">
+              <UIcon name="i-heroicons-cpu-chip" class="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            </div>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Local Models</h3>
+          </div>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400">
+            Pre-trained embedding models run in your browser via
+            <a href="https://github.com/huggingface/transformers.js" target="_blank" rel="noopener"
+              class="text-teal-600 dark:text-teal-400 hover:underline">Transformers.js</a>.
+            Models are converted to <strong class="text-zinc-700 dark:text-zinc-300">ONNX</strong>
+            format and executed using ONNX Runtime Web. No API keys or subscriptions needed.
           </p>
         </div>
 
         <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
           <div class="flex items-center gap-3 mb-3">
             <div class="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-light-bulb" class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <UIcon name="i-heroicons-bolt" class="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Examples</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">WebAssembly</h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            Each result includes teaching examples and general capabilities for practical classroom use.
+            WASM lets compiled code (C, C++, Rust) run in the browser at near-native speed. This app
+            uses it for two things: the <strong class="text-zinc-700 dark:text-zinc-300">SQLite engine</strong>
+            and the <strong class="text-zinc-700 dark:text-zinc-300">ONNX inference engine</strong>.
+            Both are compiled to WASM and run alongside JavaScript in the browser.
           </p>
+        </div>
+
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950 flex items-center justify-center">
+              <UIcon name="i-heroicons-circle-stack" class="w-5 h-5 text-sky-600 dark:text-sky-400" />
+            </div>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Persistent Database</h3>
+          </div>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400">
+            A full SQLite database runs inside a Web Worker (background thread). On first visit
+            the database downloads; on subsequent visits it loads from
+            <strong class="text-zinc-700 dark:text-zinc-300">OPFS</strong> (Origin Private File System)
+            &mdash; no network needed. Falls back to in-memory if OPFS isn't available.
+          </p>
+        </div>
+
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center">
+              <UIcon name="i-heroicons-squares-2x2" class="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            </div>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Two Models</h3>
+          </div>
+          <ul class="text-sm text-zinc-500 dark:text-zinc-400 space-y-2">
+            <li>
+              <strong class="text-zinc-700 dark:text-zinc-300">MiniLM</strong> &mdash;
+              Fast, lightweight (384-dim). Good for quick searches.
+            </li>
+            <li>
+              <strong class="text-zinc-700 dark:text-zinc-300">mxbai-embed-large</strong> &mdash;
+              High quality (1024-dim). Best accuracy for semantic search.
+            </li>
+          </ul>
         </div>
       </div>
 
