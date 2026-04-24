@@ -5,9 +5,16 @@ import {
   env,
 } from "@huggingface/transformers";
 
+console.log("[models] Config:", {
+  localModelPath: env.localModelPath,
+  allowLocalModels: env.allowLocalModels,
+  allowRemoteModels: env.allowRemoteModels,
+  cacheDir: env.cacheDir,
+});
+
 env.localModelPath = "/models/";
 env.allowLocalModels = true;
-env.allowRemoteModels = true;
+env.allowRemoteModels = false;
 
 export interface EmbeddingModel {
   id: string;

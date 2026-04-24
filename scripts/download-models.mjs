@@ -8,6 +8,7 @@ import {
   copyFileSync,
   readdirSync,
   statSync,
+  rmSync,
 } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -31,9 +32,10 @@ function copyDir(src, dest) {
 async function downloadModel() {
   console.log(`Downloading ${MODEL_ID}...`);
 
-  if (!existsSync(OUT_DIR)) {
-    mkdirSync(OUT_DIR, { recursive: true });
+  if (existsSync(OUT_DIR)) {
+    rmSync(OUT_DIR, { recursive: true, force: true });
   }
+  mkdirSync(OUT_DIR, { recursive: true });
 
   console.log("Creating pipeline (triggers model download)...");
 
@@ -44,19 +46,13 @@ async function downloadModel() {
   console.log("Model ready");
 
   const modelCacheDir = join(CACHE_DIR, MODEL_ID);
-  console.log(`Copying from cache to public/models...`);
+  const modelOutDir = join(OUT_DIR, MODEL_ID);
 
-  for (const entry of readdirSync(modelCacheDir)) {
-    const srcPath = join(modelCacheDir, entry);
-    const destPath = join(OUT_DIR, entry);
-    if (statSync(srcPath).isDirectory()) {
-      copyDir(srcPath, destPath);
-    } else {
-      copyFileSync(srcPath, destPath);
-    }
-  }
+  console.log(`Copying ${MODEL_ID} to public/models/...`);
+  copyDir(modelCacheDir, modelOutDir);
 
-  console.log(`\n✓ Model copied to public/models/`);
+  console.log(`\n✓ Model copied to public/models/${MODEL_ID}/`);
+  console.log(`  Files: ${readdirSync(modelOutDir).join(", ")}`);
 }
 
 downloadModel().catch(console.error);
