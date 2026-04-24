@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
+    "build:models": "node scripts/download-models.mjs",
     "dev": "nuxt dev",
     "bun:dev": "bunx nuxt dev",
     "generate": "nuxt generate",

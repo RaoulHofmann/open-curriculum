@@ -13,17 +13,46 @@ if (typeof window === "undefined") {
       return;
     }
 
+    let hfResponse = null;
+
+    // Try direct request first for HuggingFace, fallback to proxy on failure
     if (
       request?.url?.includes("huggingface.co") ||
-      request?.url?.includes("hf.co")
+      request?.url?.includes("hf.co") ||
+      request?.url?.includes("cdn-lfs.huggingface.co")
     ) {
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(request.url)}`;
-      request = new Request(proxyUrl, {
+      const hfRequest = new Request(request.url, {
         method: request.method,
         headers: request.headers,
         mode: "cors",
         credentials: "omit",
+        cache: request.cache,
+        redirect: "follow",
       });
+
+      try {
+        hfResponse = await fetch(hfRequest);
+        if (!hfResponse.ok) {
+          hfResponse = null;
+        }
+      } catch (e) {
+        hfResponse = null;
+      }
+
+      if (!hfResponse) {
+        const proxyUrl = `https://cors-anywhere.herokuapp.com/?${encodeURIComponent(request.url)}`;
+        const proxyRequest = new Request(proxyUrl, {
+          method: request.method,
+          headers: request.headers,
+          mode: "cors",
+          credentials: "omit",
+        });
+        try {
+          hfResponse = await fetch(proxyRequest);
+        } catch (e) {
+          // Fallback failed, continue with original request
+        }
+      }
     }
 
     // no-cors requests need credentials: omit to avoid COEP blocking them
@@ -44,7 +73,7 @@ if (typeof window === "undefined") {
       });
     }
 
-    const r = await fetch(request).catch((e) => console.error(e));
+    const r = hfResponse || await fetch(request).catch((e) => console.error(e));
     if (!r || r.status === 0) return r;
 
     const headers = new Headers(r.headers);
