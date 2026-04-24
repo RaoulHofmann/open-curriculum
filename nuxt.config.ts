@@ -9,6 +9,12 @@ export default defineNuxtConfig({
     preset: "static",
   },
   vite: {
+    server: {
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
+    },
     optimizeDeps: {
       include: [
         '@vue/devtools-core',

@@ -15,7 +15,7 @@ const {
 
 const query = ref("fractions");
 const hasSearched = ref(false);
-const mode = ref<"search" | "ask">("ask");
+const mode = ref<"search" | "ask">("search");
 
 async function handleSearch() {
     if (!query.value.trim()) return;
