@@ -50,12 +50,11 @@ export const isModelReady = ref(false);
 export const isDownloading = ref(false);
 export const downloadProgress = ref(0);
 export const downloadStatus = ref("");
-export const showModelSelector = ref(!loadSavedModel());
+export const showModelSelector = ref(false);
 
 export const checkOnLoad = async () => {
-  const savedModel = loadSavedModel();
-  if (savedModel) {
-    selectedModel.value = savedModel;
+  selectedModel.value = MODELS[0]!;
+  if (!isModelReady.value) {
     await loadModel();
   }
 };

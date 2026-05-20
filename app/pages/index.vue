@@ -23,7 +23,7 @@ const {
 } = useCurriculum();
 
 const route = useRoute();
-const router = useRouter()
+const router = useRouter();
 
 const clearing = ref(false);
 
@@ -50,7 +50,9 @@ const filterSubstrand = ref<string | null>(null);
 
 const yearLevels = computed(() => filterOptions.value?.yearLevels ?? []);
 const strands = computed(() => filterOptions.value?.strands ?? []);
-const substrandsByStrand = computed(() => filterOptions.value?.substrandsByStrand ?? {});
+const substrandsByStrand = computed(
+  () => filterOptions.value?.substrandsByStrand ?? {},
+);
 
 const availableSubstrands = computed(() => {
   if (!filterStrand.value) return [];
@@ -85,7 +87,10 @@ async function handleSearch() {
   if (filterStrand.value) filters.strand = filterStrand.value;
   if (filterSubstrand.value) filters.substrand = filterSubstrand.value;
 
-  await search(query.value.trim(), Object.keys(filters).length > 0 ? filters : undefined);
+  await search(
+    query.value.trim(),
+    Object.keys(filters).length > 0 ? filters : undefined,
+  );
 }
 
 async function handleModelLoad() {
@@ -123,7 +128,6 @@ watch(isModelReady, (ready) => {
     }
   }
 });
-
 </script>
 
 <template>
@@ -142,13 +146,19 @@ watch(isModelReady, (ready) => {
       @load="handleModelLoad"
     />
 
-    <!-- Hero Header -->
-    <header class="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+    <header
+      class="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800"
+    >
       <div class="max-w-screen-2xl mx-auto px-6 py-12">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2">
-            <UIcon name="i-heroicons-book-open" class="w-8 h-8 text-teal-600 dark:text-teal-400" />
-            <span class="text-sm font-semibold tracking-widest uppercase text-teal-600 dark:text-teal-400">
+            <UIcon
+              name="i-heroicons-book-open"
+              class="w-8 h-8 text-teal-600 dark:text-teal-400"
+            />
+            <span
+              class="text-sm font-semibold tracking-widest uppercase text-teal-600 dark:text-teal-400"
+            >
               Open Curriculum
             </span>
           </div>
@@ -161,14 +171,16 @@ watch(isModelReady, (ready) => {
           WA Curriculum Explorer
         </h1>
         <p class="text-lg text-zinc-500 dark:text-zinc-400 max-w-2xl">
-          Search and explore the WA Curriculum content descriptions. Find learning outcomes, examples, and capabilities by keyword or topic.
+          Search and explore the WA Curriculum content descriptions. Find
+          learning outcomes, examples, and capabilities by keyword or topic.
         </p>
       </div>
     </header>
 
     <div class="max-w-screen-2xl mx-auto px-6 py-8">
-      <!-- Search Section -->
-      <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 mb-8 -mt-6 relative z-10 shadow-sm">
+      <div
+        class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 mb-8 -mt-6 relative z-10 shadow-sm"
+      >
         <div class="flex items-center justify-between mb-4">
           <UBadge
             variant="soft"
@@ -190,11 +202,21 @@ watch(isModelReady, (ready) => {
               variant="ghost"
               color="neutral"
               size="sm"
-              :trailing-icon="showFilters ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+              :trailing-icon="
+                showFilters
+                  ? 'i-heroicons-chevron-up'
+                  : 'i-heroicons-chevron-down'
+              "
               @click="showFilters = !showFilters"
             >
               Filters
-              <UBadge v-if="activeFilterCount" color="primary" variant="solid" size="xs" class="ml-1">
+              <UBadge
+                v-if="activeFilterCount"
+                color="primary"
+                variant="solid"
+                size="xs"
+                class="ml-1"
+              >
                 {{ activeFilterCount }}
               </UBadge>
             </UButton>
@@ -228,11 +250,15 @@ watch(isModelReady, (ready) => {
           </UButton>
         </div>
 
-        <!-- Filters Panel -->
-        <div v-if="showFilters" class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+        <div
+          v-if="showFilters"
+          class="pt-4 border-t border-zinc-200 dark:border-zinc-800"
+        >
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
+              <label
+                class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5"
+              >
                 Content Code
               </label>
               <UInput
@@ -243,24 +269,34 @@ watch(isModelReady, (ready) => {
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
+              <label
+                class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5"
+              >
                 Year Level
               </label>
               <USelect
                 v-model="filterYear"
-                :items="[{ label: 'All years', value: null }, ...yearLevels.map(y => ({ label: `Year ${y}`, value: y }))]"
+                :items="[
+                  { label: 'All years', value: null },
+                  ...yearLevels.map((y) => ({ label: `Year ${y}`, value: y })),
+                ]"
                 placeholder="Select year"
                 size="md"
               />
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
+              <label
+                class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5"
+              >
                 Strand
               </label>
               <USelect
                 v-model="filterStrand"
-                :items="[{ label: 'All strands', value: null }, ...strands.map(s => ({ label: s, value: s }))]"
+                :items="[
+                  { label: 'All strands', value: null },
+                  ...strands.map((s) => ({ label: s, value: s })),
+                ]"
                 placeholder="Select strand"
                 size="md"
                 @update:model-value="filterSubstrand = null"
@@ -268,12 +304,17 @@ watch(isModelReady, (ready) => {
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
+              <label
+                class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1.5"
+              >
                 Sub-strand
               </label>
               <USelect
                 v-model="filterSubstrand"
-                :items="[{ label: 'All sub-strands', value: null }, ...availableSubstrands.map(s => ({ label: s, value: s }))]"
+                :items="[
+                  { label: 'All sub-strands', value: null },
+                  ...availableSubstrands.map((s) => ({ label: s, value: s })),
+                ]"
                 placeholder="Select sub-strand"
                 size="md"
                 :disabled="!filterStrand"
@@ -295,106 +336,203 @@ watch(isModelReady, (ready) => {
         </div>
       </div>
 
-      <!-- Info Cards -->
-      <div v-if="!hasSearched && !loading" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+      <div
+        v-if="!hasSearched && !loading"
+        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8"
+      >
+        <div
+          class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+        >
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-magnifying-glass" class="w-5 h-5 text-teal-600 dark:text-teal-400" />
+            <div
+              class="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-950 flex items-center justify-center"
+            >
+              <UIcon
+                name="i-heroicons-magnifying-glass"
+                class="w-5 h-5 text-teal-600 dark:text-teal-400"
+              />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Semantic Search</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">
+              Semantic Search
+            </h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            Uses <strong class="text-zinc-700 dark:text-zinc-300">embedding models</strong> to convert
-            text into numerical vectors. Text with similar meaning produces similar vectors, so the
-            app can find conceptually related content even when keywords don't match exactly.
-            The search also blends in keyword matching to boost exact phrase hits.
+            Uses
+            <strong class="text-zinc-700 dark:text-zinc-300"
+              >embedding models</strong
+            >
+            to convert text into numerical vectors. Text with similar meaning
+            produces similar vectors, so the app can find conceptually related
+            content even when keywords don't match exactly. The search also
+            blends in keyword matching to boost exact phrase hits.
           </p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+        <div
+          class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+        >
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-shield-check" class="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <div
+              class="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center"
+            >
+              <UIcon
+                name="i-heroicons-shield-check"
+                class="w-5 h-5 text-emerald-600 dark:text-emerald-400"
+              />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">100% Client-Side</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">
+              100% Client-Side
+            </h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            No server, no API calls, no data leaves your machine. All search, embedding, and
-            database operations happen entirely in your browser. No analytics, no cookies, no
-            third-party tracking.
+            No server, no API calls, no data leaves your machine. All search,
+            embedding, and database operations happen entirely in your browser.
+            No analytics, no cookies, no third-party tracking.
           </p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+        <div
+          class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+        >
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-cpu-chip" class="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            <div
+              class="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-950 flex items-center justify-center"
+            >
+              <UIcon
+                name="i-heroicons-cpu-chip"
+                class="w-5 h-5 text-violet-600 dark:text-violet-400"
+              />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Local Models</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">
+              Local Models
+            </h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
             Pre-trained embedding models run in your browser via
-            <a href="https://github.com/huggingface/transformers.js" target="_blank" rel="noopener"
-              class="text-teal-600 dark:text-teal-400 hover:underline">Transformers.js</a>.
-            Models are converted to <strong class="text-zinc-700 dark:text-zinc-300">ONNX</strong>
-            format and executed using ONNX Runtime Web. No API keys or subscriptions needed.
+            <a
+              href="https://github.com/huggingface/transformers.js"
+              target="_blank"
+              rel="noopener"
+              class="text-teal-600 dark:text-teal-400 hover:underline"
+              >Transformers.js</a
+            >. Models are converted to
+            <strong class="text-zinc-700 dark:text-zinc-300">ONNX</strong>
+            format and executed using ONNX Runtime Web. No API keys or
+            subscriptions needed.
           </p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+        <div
+          class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+        >
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-bolt" class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            <div
+              class="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-950 flex items-center justify-center"
+            >
+              <UIcon
+                name="i-heroicons-bolt"
+                class="w-5 h-5 text-amber-600 dark:text-amber-400"
+              />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">WebAssembly</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">
+              WebAssembly
+            </h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            WASM lets compiled code (C, C++, Rust) run in the browser at near-native speed. This app
-            uses it for two things: the <strong class="text-zinc-700 dark:text-zinc-300">SQLite engine</strong>
-            and the <strong class="text-zinc-700 dark:text-zinc-300">ONNX inference engine</strong>.
-            Both are compiled to WASM and run alongside JavaScript in the browser.
+            WASM lets compiled code (C, C++, Rust) run in the browser at
+            near-native speed. This app uses it for two things: the
+            <strong class="text-zinc-700 dark:text-zinc-300"
+              >SQLite engine</strong
+            >
+            and the
+            <strong class="text-zinc-700 dark:text-zinc-300"
+              >ONNX inference engine</strong
+            >. Both are compiled to WASM and run alongside JavaScript in the
+            browser.
           </p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+        <div
+          class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+        >
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-circle-stack" class="w-5 h-5 text-sky-600 dark:text-sky-400" />
+            <div
+              class="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-950 flex items-center justify-center"
+            >
+              <UIcon
+                name="i-heroicons-circle-stack"
+                class="w-5 h-5 text-sky-600 dark:text-sky-400"
+              />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Persistent Database</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">
+              Persistent Database
+            </h3>
           </div>
           <p class="text-sm text-zinc-500 dark:text-zinc-400">
-            A full SQLite database runs inside a Web Worker (background thread). On first visit
-            the database downloads; on subsequent visits it loads from
-            <strong class="text-zinc-700 dark:text-zinc-300">OPFS</strong> (Origin Private File System)
-            &mdash; no network needed. Falls back to in-memory if OPFS isn't available.
+            A full SQLite database runs inside a Web Worker (background thread).
+            On first visit the database downloads; on subsequent visits it loads
+            from
+            <strong class="text-zinc-700 dark:text-zinc-300">OPFS</strong>
+            (Origin Private File System) &mdash; no network needed. Falls back
+            to in-memory if OPFS isn't available.
           </p>
         </div>
 
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5">
+        <div
+          class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+        >
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center">
-              <UIcon name="i-heroicons-squares-2x2" class="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            <div
+              class="w-10 h-10 rounded-lg bg-rose-50 dark:bg-rose-950 flex items-center justify-center"
+            >
+              <UIcon
+                name="i-heroicons-squares-2x2"
+                class="w-5 h-5 text-rose-600 dark:text-rose-400"
+              />
             </div>
-            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">Two Models</h3>
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">
+              Two Models
+            </h3>
           </div>
           <ul class="text-sm text-zinc-500 dark:text-zinc-400 space-y-2">
             <li>
-              <strong class="text-zinc-700 dark:text-zinc-300">MiniLM</strong> &mdash;
-              Fast, lightweight (384-dim). Good for quick searches.
+              <strong class="text-zinc-700 dark:text-zinc-300">MiniLM</strong>
+              &mdash; Fast, lightweight (384-dim). Good for quick searches.
             </li>
             <li>
-              <strong class="text-zinc-700 dark:text-zinc-300">mxbai-embed-large</strong> &mdash;
-              High quality (1024-dim). Best accuracy for semantic search.
+              <strong class="text-zinc-700 dark:text-zinc-300"
+                >mxbai-embed-large</strong
+              >
+              &mdash; High quality (1024-dim). Best accuracy for semantic
+              search.
             </li>
           </ul>
         </div>
       </div>
 
-      <!-- Model not ready -->
       <div
-        v-if="!isModelReady && !isDownloading"
+        v-if="isDownloading"
+        class="flex flex-col items-center justify-center py-16 text-center"
+      >
+        <UIcon
+          name="i-heroicons-arrow-down-tray"
+          class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4"
+        />
+        <p class="text-base text-zinc-500 dark:text-zinc-400 mb-1">
+          Loading {{ selectedModel.name }}…
+        </p>
+        <p class="text-sm text-zinc-400 dark:text-zinc-500 mb-4">
+          {{ downloadStatus }}
+        </p>
+        <UProgress
+          :value="downloadProgress"
+          :max="100"
+          class="max-w-xs w-full"
+        />
+      </div>
+
+      <div
+        v-else-if="!isModelReady"
         class="flex flex-col items-center justify-center py-16 text-center"
       >
         <UIcon
@@ -411,14 +549,9 @@ watch(isModelReady, (ready) => {
 
       <!-- Loading -->
       <div v-else-if="loading" class="space-y-4">
-        <USkeleton
-          class="h-32 w-full rounded-xl"
-          v-for="n in 3"
-          :key="n"
-        />
+        <USkeleton class="h-32 w-full rounded-xl" v-for="n in 3" :key="n" />
       </div>
 
-      <!-- Error -->
       <UAlert
         v-else-if="error"
         icon="i-heroicons-exclamation-triangle"
@@ -436,12 +569,20 @@ watch(isModelReady, (ready) => {
             Search Results
           </h2>
           <div class="flex items-center gap-3">
-            <div v-if="activeFilterCount > 0" class="flex items-center gap-1.5 text-sm text-zinc-500">
+            <div
+              v-if="activeFilterCount > 0"
+              class="flex items-center gap-1.5 text-sm text-zinc-500"
+            >
               <UIcon name="i-heroicons-funnel" class="w-4 h-4" />
-              <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filter' : 'filters' }} active</span>
+              <span
+                >{{ activeFilterCount }}
+                {{ activeFilterCount === 1 ? "filter" : "filters" }}
+                active</span
+              >
             </div>
             <UBadge variant="soft" color="primary" size="md">
-              {{ results.length }} {{ results.length === 1 ? "descriptor" : "descriptors" }}
+              {{ results.length }}
+              {{ results.length === 1 ? "descriptor" : "descriptors" }}
             </UBadge>
           </div>
         </div>
@@ -483,12 +624,7 @@ watch(isModelReady, (ready) => {
             </p>
           </div>
           <div class="flex items-center gap-4">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              size="xs"
-              to="/about"
-            >
+            <UButton variant="ghost" color="neutral" size="xs" to="/about">
               About
             </UButton>
             <UButton
