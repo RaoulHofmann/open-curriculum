@@ -7,7 +7,7 @@
     "build:models": "node scripts/download-models.mjs",
     "dev": "nuxt dev",
     "bun:dev": "bunx nuxt dev",
-    "generate": "node scripts/download-models.mjs && nuxt generate",
+    "generate": "node scripts/download-models.mjs && npm run ingest && nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "ingest": "tsx scripts/ingest.ts"
